@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Contador de Billetes 🇦🇷</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --celeste: #74ACDF;
+    --verde: #2D9A5F;
+    --verde-oscuro: #1E6B42;
+    --amarillo: #E8C840;
+    --oscuro: #161C24;
+    --superficie: #1E2530;
+    --borde: rgba(255,255,255,0.08);
+    --texto: #EEE8DC;
+    --texto-dim: rgba(238,232,220,0.42);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--oscuro);
+    color: var(--texto);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .app {
+    width: 100%;
+    max-width: 430px;
+    height: 100dvh;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .header {
+    background: linear-gradient(160deg, #1A4A7A 0%, #0F2D50 100%);
+    padding: 10px 14px 11px;
+    border-bottom: 2px solid var(--celeste);
+    flex-shrink: 0;
+  }
+  .header-top { display: flex; align-items: center; gap: 8px; }
+  .header h1 {
+    font-family: 'Lora', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    flex: 1;
+  }
+  .header-sub { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 1px; }
+  .total-bar {
+    background: var(--superficie);
+    border-bottom: 1px solid var(--borde);
+    padding: 7px 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+  }
+  .total-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--texto-dim);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .total-amount {
+    font-family: 'Lora', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--amarillo);
+    transition: transform 0.15s ease;
+    line-height: 1;
+    flex: 1;
+  }
+  .total-amount.bump { transform: scale(1.08); }
+  .header-btns { display: flex; gap: 5px; }
+  .btn-save {
+    background: rgba(45,154,95,0.2);
+    border: 1px solid rgba(45,154,95,0.5);
+    color: #5DD98A;
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Source Sans 3', sans-serif;
+    white-space: nowrap;
+  }
+  .btn-save:active { background: rgba(45,154,95,0.4); transform: scale(0.94); }
+  .btn-reset {
+    background: rgba(200,48,58,0.15);
+    border: 1px solid rgba(200,48,58,0.4);
+    color: #E06070;
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Source Sans 3', sans-serif;
+  }
+  .btn-reset:active { background: rgba(200,48,58,0.35); transform: scale(0.94); }
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--borde);
+    background: var(--superficie);
+    flex-shrink: 0;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 8px 6px;
+    background: transparent;
+    border: none;
+    color: var(--texto-dim);
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+    margin-bottom: -1px;
+  }
+  .tab-btn.active { color: var(--celeste); border-bottom-color: var(--celeste); }
+  .tab-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 10px;
+  }
+  .bills-list {
+    padding: 6px 10px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .bill-card {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: 9px;
+    padding: 7px 10px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .bill-card.active {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.14);
+  }
+  .bill-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+    border-radius: 9px 0 0 9px;
+  }
+  .bill-card.active::before { opacity: 1; }
+  .b-20000 { --accent: #3030A0; } /* azul violáceo */
+  .b-10000 { --accent: #1A7A60; } /* verde azulado */
+  .b-2000  { --accent: #C85520; } /* naranja tostado */
+  .b-1000  { --accent: #1A90CC; } /* celeste */
+  .b-500   { --accent: #2E7A35; } /* verde pino */
+  .b-200   { --accent: #A81828; } /* bordó */
+  .b-100   { --accent: #7830A8; } /* violeta */
+  .b-50    { --accent: #183880; } /* azul marino */
+  .b-20    { --accent: #C84020; } /* rojo anaranjado */
+  .b-10    { --accent: #607820; } /* verde oliva */
+
+  /* Miniatura del billete con color de fondo por denominación */
+  .bill-chip {
+    width: 74px;
+    height: 44px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    font-family: 'Lora', serif;
+    font-weight: 700;
+  }
+  .bill-chip-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .chip-val {
+    font-family: 'Lora', serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  /* Colores basados en los billetes reales argentinos */
+  /* $20.000 — verde agua / celeste suave */
+  .bill-chip.d-20000 { background: linear-gradient(135deg, #8ECFB8 0%, #C0E8D8 100%); color: #0D4030; }
+  /* $10.000 — celeste / azul claro */
+  .bill-chip.d-10000 { background: linear-gradient(135deg, #6AAED0 0%, #A8D4EE 100%); color: #0A2E48; }
+  /* $2.000 — gris rosado / blanco roto */
+  .bill-chip.d-2000  { background: linear-gradient(135deg, #C8B0BC 0%, #E8D4DC 100%); color: #4A1030; }
+  /* $1.000 — beige anaranjado / durazno */
+  .bill-chip.d-1000  { background: linear-gradient(135deg, #E0A060 0%, #F0C890 100%); color: #6A2C08; }
+  /* $500 — verde oliva claro / menta */
+  .bill-chip.d-500   { background: linear-gradient(135deg, #90B878 0%, #B8D098 100%); color: #284818; }
+  /* $200 — azul índigo / azul marino con rojo */
+  .bill-chip.d-200   { background: linear-gradient(135deg, #5878C0 0%, #90A8E0 100%); color: #0A1848; }
+  /* $100 — lila / violeta claro */
+  .bill-chip.d-100   { background: linear-gradient(135deg, #A890C8 0%, #CEB8E0 100%); color: #300848; }
+  /* $50 — verde menta / gris verdoso */
+  .bill-chip.d-50    { background: linear-gradient(135deg, #90B8A8 0%, #B8D0C8 100%); color: #183828; }
+  /* $20 — rosa / rojo coral */
+  .bill-chip.d-20    { background: linear-gradient(135deg, #E09090 0%, #F0B8B8 100%); color: #580808; }
+  /* $10 — beige / crema con celeste */
+  .bill-chip.d-10    { background: linear-gradient(135deg, #C8B888 0%, #E0D0A8 100%); color: #483808; }
+
+  .bill-info { flex: 1; min-width: 0; }
+  .bill-denom {
+    font-family: 'Lora', serif;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--texto);
+  }
+  .bill-subtotal {
+    font-size: 13px;
+    color: white !important;
+    margin-top: 2px;
+    min-height: 13px;
+    transition: color 0.2s;
+  }
+  .bill-card.active .bill-subtotal { }
+  .bill-controls {
+    display: flex;
+    align-items: center;
+    background: rgba(0,0,0,0.22);
+    border-radius: 7px;
+    border: 1px solid var(--borde);
+    overflow: hidden;
+  }
+  .btn-adj {
+    width: 30px;
+    height: 30px;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.65);
+    font-size: 17px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .btn-adj:active { background: rgba(255,255,255,0.12); color: white; }
+  .qty-display {
+    width: 34px;
+    text-align: center;
+    font-family: 'Lora', serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+    -webkit-appearance: none;
+    cursor: pointer;
+  }
+  .breakdown-section {
+    margin: 6px 10px 0;
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .breakdown-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--borde);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--texto-dim);
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .breakdown-count {
+    background: rgba(45,154,95,0.22);
+    color: #5DD98A;
+    border-radius: 20px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+  .breakdown-item + .breakdown-item { border-top: 1px solid rgba(255,255,255,0.04); }
+  .bd-left { color: rgba(255,255,255,0.55); }
+  .bd-right { font-family: 'Lora', serif; font-weight: 600; color: var(--texto); font-size: 13px; }
+  .breakdown-total { border-top: 1px solid rgba(255,255,255,0.1) !important; }
+  .breakdown-empty {
+    padding: 16px 12px;
+    text-align: center;
+    color: var(--texto-dim);
+    font-size: 12px;
+    font-style: italic;
+  }
+  .history-list {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .history-empty {
+    text-align: center;
+    color: var(--texto-dim);
+    font-style: italic;
+    font-size: 13px;
+    padding: 40px 20px;
+  }
+  .history-card {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .hc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .hc-header:active { background: rgba(255,255,255,0.04); }
+  .hc-left { display: flex; flex-direction: column; gap: 2px; }
+  .hc-date { font-family: 'Lora', serif; font-size: 14px; font-weight: 600; color: var(--texto); }
+  .hc-time { font-size: 11px; color: var(--texto-dim); }
+  .hc-right { display: flex; align-items: center; gap: 8px; }
+  .hc-total { font-family: 'Lora', serif; font-size: 17px; font-weight: 700; color: var(--amarillo); }
+  .hc-delete {
+    background: rgba(200,48,58,0.15);
+    border: 1px solid rgba(200,48,58,0.35);
+    color: #E06070;
+    border-radius: 5px;
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hc-delete:active { background: rgba(200,48,58,0.4); }
+  .hc-chevron { color: var(--texto-dim); font-size: 10px; transition: transform 0.25s; display: inline-block; }
+  .hc-header.open { border-bottom: 1px solid var(--borde); }
+  .hc-header.open .hc-chevron { transform: rotate(180deg); }
+  .hc-detail { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+  .hc-detail.open { max-height: 500px; }
+  .hc-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 6px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.55);
+  }
+  .hc-row:last-child { border-bottom: none; }
+  .hc-row span:last-child { font-family: 'Lora', serif; font-weight: 600; color: var(--texto); }
+  .toast {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: #1E3028;
+    border: 1px solid rgba(93,217,138,0.4);
+    color: #5DD98A;
+    padding: 8px 16px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .bottom-bar {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--verde) 0%, var(--verde-oscuro) 100%);
+    padding: 10px 14px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+  }
+  .bc-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.65); font-weight: 500; }
+  .bc-amount { font-family: 'Lora', serif; font-size: 26px; font-weight: 700; color: white; line-height: 1; margin-top: 1px; }
+  .bc-bills { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 1px; }
+  .bc-save-btn {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    border-radius: 8px;
+    padding: 8px 13px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Source Sans 3', sans-serif;
+    white-space: nowrap;
+  }
+  .bc-save-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.95); }
+  .bc-share-btn {
+    background: rgba(116,172,223,0.22);
+    border: 1px solid rgba(116,172,223,0.45);
+    color: #A8D8F8;
+    border-radius: 8px;
+    padding: 8px 13px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Source Sans 3', sans-serif;
+    white-space: nowrap;
+  }
+  .bc-share-btn:active { background: rgba(116,172,223,0.4); transform: scale(0.95); }
+  .bc-share-btn:disabled { opacity: 0.5; cursor: default; }
+  #shareCanvas { display: none; position: fixed; left: -9999px; top: 0; }
+
+  /* ── Sección cambio colapsable ── */
+  .cambio-section {
+    margin: 4px 10px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(232,200,64,0.25);
+  }
+  .cambio-header {
+    background: rgba(232,200,64,0.08);
+    padding: 9px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: background 0.15s;
+  }
+  .cambio-header:active { background: rgba(232,200,64,0.16); }
+  .cambio-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--amarillo);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .cambio-badge {
+    background: rgba(232,200,64,0.18);
+    color: var(--amarillo);
+    border-radius: 20px;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-family: 'Lora', serif;
+    font-weight: 700;
+  }
+  .cambio-chevron {
+    color: var(--amarillo);
+    font-size: 11px;
+    transition: transform 0.25s;
+    display: inline-block;
+  }
+  .cambio-header.open .cambio-chevron { transform: rotate(180deg); }
+  .cambio-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    background: rgba(255,255,255,0.02);
+  }
+  .cambio-body.open { max-height: 400px; }
+  .cambio-list {
+    padding: 5px 10px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  /* Modal editar cantidad */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: #1E2530;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 20px;
+    width: 260px;
+    text-align: center;
+  }
+  .modal-title { font-family: 'Lora', serif; font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .modal-sub { font-size: 12px; color: var(--texto-dim); margin-bottom: 14px; }
+  .modal-input {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    color: white;
+    font-family: 'Lora', serif;
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    padding: 10px;
+    outline: none;
+    margin-bottom: 14px;
+  }
+  .modal-input:focus { border-color: var(--celeste); }
+  .modal-btns { display: flex; gap: 8px; }
+  .modal-cancel {
+    flex: 1; padding: 9px; border-radius: 8px;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+    color: var(--texto-dim); font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: 'Source Sans 3', sans-serif;
+  }
+  .modal-ok {
+    flex: 1; padding: 9px; border-radius: 8px;
+    background: rgba(45,154,95,0.25); border: 1px solid rgba(45,154,95,0.5);
+    color: #5DD98A; font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: 'Source Sans 3', sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <h1>🇦🇷 Contador de Billetes</h1>
+    </div>
+    <div class="header-sub">Pesos Argentinos · 2026</div>
+  </div>
+
+  <!-- Barra total -->
+  <div class="total-bar">
+    <span class="total-label">Total</span>
+    <span class="total-amount" id="totalAmount">$ 0</span>
+    <div class="header-btns">
+      <button class="btn-save" onclick="guardarConteo()">💾 Guardar</button>
+      <button class="btn-reset" onclick="resetear()">✕ Reset</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('contar', this)">Contar</button>
+    <button class="tab-btn" onclick="switchTab('desglose', this)">Desglose</button>
+    <button class="tab-btn" onclick="switchTab('historial', this)">Historial</button>
+  </div>
+
+  <!-- Contenido -->
+  <div class="tab-content" id="tabContent">
+    <!-- TAB CONTAR -->
+    <div id="tab-contar">
+      <div class="bills-list" id="billsList"></div>
+      <!-- Sección cambio colapsable -->
+      <div class="cambio-section" id="cambioSection">
+        <div class="cambio-header" id="cambioHeader" onclick="toggleCambio()">
+          <div class="cambio-title">
+            🪙 Cambio
+            <span class="cambio-badge" id="cambioBadge">$ 0</span>
+          </div>
+          <span class="cambio-chevron" id="cambioChevron">▼</span>
+        </div>
+        <div class="cambio-body" id="cambioBody">
+          <div class="cambio-list" id="cambioList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB DESGLOSE -->
+    <div id="tab-desglose" style="display:none">
+      <div class="breakdown-section" style="margin-top:10px">
+        <div class="breakdown-header">
+          <span>Desglose</span>
+          <span class="breakdown-count" id="bdCount">0 billetes</span>
+        </div>
+        <div id="bdBody">
+          <div class="breakdown-empty">Aún no hay billetes contados</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB HISTORIAL -->
+    <div id="tab-historial" style="display:none">
+      <div class="history-list" id="historyList">
+        <div class="history-empty">No hay conteos guardados aún</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra inferior -->
+  <div class="bottom-bar">
+    <div>
+      <div class="bc-label">Total acumulado</div>
+      <div class="bc-amount" id="bcAmount">$ 0</div>
+      <div class="bc-bills" id="bcBills">0 billetes</div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="bc-share-btn" onclick="compartir()" id="shareBtn" disabled>📤 Compartir</button>
+      <button class="bc-save-btn" onclick="guardarConteo()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Modal editar cantidad -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle">Editar cantidad</div>
+    <div class="modal-sub" id="modalSub">Ingresá la cantidad de billetes</div>
+    <input type="number" class="modal-input" id="modalInput" min="0" max="9999" inputmode="numeric">
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="cerrarModal()">Cancelar</button>
+      <button class="modal-ok" onclick="confirmarModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="shareCanvas"></canvas>
+
+<script>
+// ── Datos de billetes ──
+const BILLS = [
+  { val: 20000, label: '$20.000', nombre: 'Alberdi / Libro', cls: 'b-20000 d-20000', chipVal: '20.000', textColor: '#0D4030', cambio: false },
+  { val: 10000, label: '$10.000', nombre: 'Remedios / Belgrano', cls: 'b-10000 d-10000', chipVal: '10.000', textColor: '#0A2E48', cambio: false },
+  { val:  2000, label: '$2.000',  nombre: 'Carrillo / Grierson', cls: 'b-2000 d-2000',   chipVal: '2.000',  textColor: '#4A1030', cambio: false },
+  { val:  1000, label: '$1.000',  nombre: 'Hornero', cls: 'b-1000 d-1000',   chipVal: '1.000',  textColor: '#6A2C08', cambio: false },
+  { val:   500, label: '$500',    nombre: 'Jaguar', cls: 'b-500 d-500',     chipVal: '500',    textColor: '#284818', cambio: false },
+  { val:   200, label: '$200',    nombre: 'Ballena franca', cls: 'b-200 d-200',     chipVal: '200',    textColor: '#0A1848', cambio: false },
+  { val:   100, label: '$100',    nombre: 'Taruca', cls: 'b-100 d-100',     chipVal: '100',    textColor: '#300848', cambio: false },
+  { val:    50, label: '$50',     nombre: 'Cóndor', cls: 'b-50 d-50',       chipVal: '50',     textColor: '#183828', cambio: true  },
+  { val:    20, label: '$20',     nombre: 'Guanaco', cls: 'b-20 d-20',       chipVal: '20',     textColor: '#580808', cambio: true  },
+  { val:    10, label: '$10',     nombre: 'Belgrano', cls: 'b-10 d-10',       chipVal: '10',     textColor: '#483808', cambio: true  },
+];
+
+const BILLS_MAIN   = BILLS.filter(b => !b.cambio);
+const BILLS_CAMBIO = BILLS.filter(b =>  b.cambio);
+
+let cambioOpen = false;
+
+let counts = {};
+let history = JSON.parse(localStorage.getItem('billetes_history') || '[]');
+let modalBill = null;
+
+// ── Formatear ──
+function fmt(n) {
+  if (n >= 1000000) return '$ ' + (n/1000000).toFixed(n%1000000===0?0:2).replace('.',',') + 'M';
+  return '$ ' + n.toLocaleString('es-AR');
+}
+
+// ── Inicializar billetes ──
+function initBills() {
+  BILLS.forEach(b => counts[b.val] = 0);
+  renderBills();
+}
+
+function makeBillCard(b) {
+  const qty = counts[b.val];
+  const sub = qty > 0 ? `${qty} × ${b.label} = ${fmt(qty * b.val)}` : '';
+  const card = document.createElement('div');
+  card.className = `bill-card ${b.cls}${qty > 0 ? ' active' : ''}`;
+  card.id = `card-${b.val}`;
+  card.innerHTML = `
+    <div class="bill-chip ${b.cls.split(' ')[1]}" onclick="abrirModal(${b.val})">
+        <div class="bill-chip-inner">
+          <span class="chip-val" style="color:${b.textColor}">$${b.chipVal}</span>
+        </div>
+      </div>
+    <div class="bill-info">
+      <div class="bill-subtotal" id="sub-${b.val}">${sub}</div>
+    </div>
+    <div class="bill-controls">
+      <button class="btn-adj" onclick="adj(${b.val},-1)">−</button>
+      <span class="qty-display" id="qty-${b.val}" onclick="abrirModal(${b.val})">${qty}</span>
+      <button class="btn-adj" onclick="adj(${b.val},1)">+</button>
+    </div>
+  `;
+  return card;
+}
+
+function renderBills() {
+  // Billetes principales
+  const list = document.getElementById('billsList');
+  list.innerHTML = '';
+  BILLS_MAIN.forEach(b => list.appendChild(makeBillCard(b)));
+
+  // Billetes de cambio
+  const cambioList = document.getElementById('cambioList');
+  cambioList.innerHTML = '';
+  BILLS_CAMBIO.forEach(b => cambioList.appendChild(makeBillCard(b)));
+
+  updateCambioBadge();
+}
+
+// ── Toggle sección cambio ──
+function toggleCambio() {
+  cambioOpen = !cambioOpen;
+  document.getElementById('cambioBody').classList.toggle('open', cambioOpen);
+  document.getElementById('cambioHeader').classList.toggle('open', cambioOpen);
+}
+
+function updateCambioBadge() {
+  const totalCambio = BILLS_CAMBIO.reduce((s, b) => s + counts[b.val] * b.val, 0);
+  const qtyCambio   = BILLS_CAMBIO.reduce((s, b) => s + counts[b.val], 0);
+  const badge = document.getElementById('cambioBadge');
+  badge.textContent = totalCambio > 0 ? fmt(totalCambio) : '$ 0';
+  // Si hay algo cargado en cambio y está cerrado, abrir automáticamente
+  if (qtyCambio > 0 && !cambioOpen) {
+    cambioOpen = true;
+    document.getElementById('cambioBody').classList.add('open');
+    document.getElementById('cambioHeader').classList.add('open');
+  }
+}
+
+// ── Ajustar cantidad ──
+function adj(val, delta) {
+  counts[val] = Math.max(0, (counts[val] || 0) + delta);
+  updateCard(val);
+  updateTotals();
+}
+
+function updateCard(val) {
+  const b = BILLS.find(x => x.val === val);
+  const qty = counts[val];
+  const card = document.getElementById(`card-${val}`);
+  const qtyEl = document.getElementById(`qty-${val}`);
+  const subEl = document.getElementById(`sub-${val}`);
+  if (!card) return;
+  card.classList.toggle('active', qty > 0);
+  qtyEl.textContent = qty;
+  subEl.textContent = qty > 0 ? `${qty} × ${b.label} = ${fmt(qty * val)}` : '';
+  updateCambioBadge();
+}
+
+// ── Totales ──
+function updateTotals() {
+  const total = BILLS.reduce((s, b) => s + counts[b.val] * b.val, 0);
+  const totalBills = BILLS.reduce((s, b) => s + counts[b.val], 0);
+
+  // Bump animation
+  const el = document.getElementById('totalAmount');
+  el.textContent = fmt(total);
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
+  setTimeout(() => el.classList.remove('bump'), 200);
+
+  document.getElementById('bcAmount').textContent = fmt(total);
+  document.getElementById('bcBills').textContent = `${totalBills} billete${totalBills !== 1 ? 's' : ''}`;
+
+  const shareBtn = document.getElementById('shareBtn');
+  shareBtn.disabled = total === 0;
+
+  updateDesglose();
+}
+
+// ── Desglose ──
+function updateDesglose() {
+  const total = BILLS.reduce((s, b) => s + counts[b.val] * b.val, 0);
+  const totalBills = BILLS.reduce((s, b) => s + counts[b.val], 0);
+  const active = BILLS.filter(b => counts[b.val] > 0);
+
+  document.getElementById('bdCount').textContent = `${totalBills} billete${totalBills !== 1 ? 's' : ''}`;
+
+  const body = document.getElementById('bdBody');
+  if (active.length === 0) {
+    body.innerHTML = '<div class="breakdown-empty">Aún no hay billetes contados</div>';
+    return;
+  }
+
+  let html = '';
+  active.forEach(b => {
+    const subtot = counts[b.val] * b.val;
+    const pct = total > 0 ? ((subtot / total) * 100).toFixed(1) : '0';
+    html += `<div class="breakdown-item">
+      <span class="bd-left">${counts[b.val]} × ${b.label}</span>
+      <span class="bd-right">${fmt(subtot)} <span style="font-size:10px;color:var(--texto-dim);font-family:'Source Sans 3',sans-serif;font-weight:400">${pct}%</span></span>
+    </div>`;
+  });
+  html += `<div class="breakdown-item breakdown-total">
+    <span class="bd-left" style="color:var(--texto)">Total</span>
+    <span class="bd-right" style="color:var(--amarillo)">${fmt(total)}</span>
+  </div>`;
+  body.innerHTML = html;
+}
+
+// ── Reset ──
+function resetear() {
+  if (BILLS.every(b => counts[b.val] === 0)) return;
+  BILLS.forEach(b => counts[b.val] = 0);
+  cambioOpen = false;
+  document.getElementById('cambioBody').classList.remove('open');
+  document.getElementById('cambioHeader').classList.remove('open');
+  renderBills();
+  updateTotals();
+  showToast('Contador reseteado');
+}
+
+// ── Guardar ──
+function guardarConteo() {
+  const total = BILLS.reduce((s, b) => s + counts[b.val] * b.val, 0);
+  if (total === 0) { showToast('No hay nada que guardar'); return; }
+
+  const now = new Date();
+  const entry = {
+    id: Date.now(),
+    fecha: now.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' }),
+    hora: now.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' }),
+    total,
+    detalle: BILLS.filter(b => counts[b.val] > 0).map(b => ({ val: b.val, label: b.label, qty: counts[b.val] }))
+  };
+
+  history.unshift(entry);
+  if (history.length > 50) history = history.slice(0, 50);
+  localStorage.setItem('billetes_history', JSON.stringify(history));
+  renderHistory();
+  showToast('✓ Conteo guardado');
+}
+
+// ── Historial ──
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (history.length === 0) {
+    list.innerHTML = '<div class="history-empty">No hay conteos guardados aún</div>';
+    return;
+  }
+  list.innerHTML = history.map((e, i) => `
+    <div class="history-card">
+      <div class="hc-header" onclick="toggleHC(${e.id}, this)" id="hh-${e.id}">
+        <div class="hc-left">
+          <span class="hc-date">${e.fecha}</span>
+          <span class="hc-time">${e.hora}</span>
+        </div>
+        <div class="hc-right">
+          <span class="hc-total">${fmt(e.total)}</span>
+          <button class="hc-delete" onclick="event.stopPropagation();eliminarHistorial(${e.id})">✕</button>
+          <span class="hc-chevron">▼</span>
+        </div>
+      </div>
+      <div class="hc-detail" id="hd-${e.id}">
+        ${e.detalle.map(d => `
+          <div class="hc-row">
+            <span>${d.qty} × ${d.label}</span>
+            <span>${fmt(d.qty * d.val)}</span>
+          </div>
+        `).join('')}
+        <div class="hc-row" style="border-top:1px solid rgba(255,255,255,0.08)">
+          <span style="color:var(--texto);font-weight:600">Total</span>
+          <span style="color:var(--amarillo)">${fmt(e.total)}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleHC(id, header) {
+  const detail = document.getElementById(`hd-${id}`);
+  const isOpen = detail.classList.contains('open');
+  detail.classList.toggle('open', !isOpen);
+  header.classList.toggle('open', !isOpen);
+}
+
+function eliminarHistorial(id) {
+  history = history.filter(e => e.id !== id);
+  localStorage.setItem('billetes_history', JSON.stringify(history));
+  renderHistory();
+  showToast('Conteo eliminado');
+}
+
+// ── Modal edición ──
+function abrirModal(val) {
+  modalBill = val;
+  const b = BILLS.find(x => x.val === val);
+  document.getElementById('modalTitle').textContent = b.label;
+  document.getElementById('modalSub').textContent = 'Ingresá la cantidad de billetes';
+  const inp = document.getElementById('modalInput');
+  inp.value = counts[val] || '';
+  document.getElementById('modalOverlay').classList.add('show');
+  setTimeout(() => { inp.focus(); inp.select(); }, 100);
+}
+
+function cerrarModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+  modalBill = null;
+}
+
+function confirmarModal() {
+  if (modalBill === null) return;
+  const v = parseInt(document.getElementById('modalInput').value) || 0;
+  counts[modalBill] = Math.max(0, v);
+  updateCard(modalBill);
+  updateTotals();
+  cerrarModal();
+}
+
+document.getElementById('modalInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmarModal();
+  if (e.key === 'Escape') cerrarModal();
+});
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) cerrarModal();
+});
+
+// ── Tabs ──
+function switchTab(name, btn) {
+  ['contar','desglose','historial'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t === name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (name === 'historial') renderHistory();
+}
+
+// ── Compartir ──
+function compartir() {
+  const total = BILLS.reduce((s, b) => s + counts[b.val] * b.val, 0);
+  const active = BILLS.filter(b => counts[b.val] > 0);
+  if (active.length === 0) return;
+
+  const lines = active.map(b => `${counts[b.val]} × ${b.label} = ${fmt(counts[b.val] * b.val)}`);
+  const text = `🇦🇷 Contador de Billetes\n\n${lines.join('\n')}\n\n💰 Total: ${fmt(total)}`;
+
+  if (navigator.share) {
+    navigator.share({ title: 'Contador de Billetes', text }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('📋 Copiado al portapapeles'));
+  } else {
+    showToast('No se puede compartir en este dispositivo');
+  }
+}
+
+// ── Toast ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Init ──
+initBills();
+updateTotals();
+</script>
+</body>
+</html>
