@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Contador de Billetes 🇦🇷</title>
 <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -413,7 +413,7 @@
   .bottom-bar {
     flex-shrink: 0;
     background: linear-gradient(135deg, var(--verde) 0%, var(--verde-oscuro) 100%);
-    padding: 10px 14px 14px;
+    padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -961,16 +961,132 @@ function compartir() {
   const active = BILLS.filter(b => counts[b.val] > 0);
   if (active.length === 0) return;
 
-  const lines = active.map(b => `${counts[b.val]} × ${b.label} = ${fmt(counts[b.val] * b.val)}`);
-  const text = `🇦🇷 Contador de Billetes\n\n${lines.join('\n')}\n\n💰 Total: ${fmt(total)}`;
+  // ── Dimensiones del ticket ──
+  const W = 600;
+  const HEADER = 110;
+  const ROW_H = 44;
+  const FOOTER = 90;
+  const PAD = 32;
+  const H = HEADER + active.length * ROW_H + FOOTER + 20;
 
-  if (navigator.share) {
-    navigator.share({ title: 'Contador de Billetes', text }).catch(() => {});
-  } else if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(() => showToast('📋 Copiado al portapapeles'));
-  } else {
-    showToast('No se puede compartir en este dispositivo');
-  }
+  const canvas = document.getElementById('shareCanvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // ── Fondo oscuro ──
+  ctx.fillStyle = '#161C24';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Franja superior azul ──
+  const grad = ctx.createLinearGradient(0, 0, W, HEADER);
+  grad.addColorStop(0, '#1A4A7A');
+  grad.addColorStop(1, '#0F2D50');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, HEADER);
+
+  // ── Línea celeste ──
+  ctx.fillStyle = '#74ACDF';
+  ctx.fillRect(0, HEADER - 3, W, 3);
+
+  // ── Título ──
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 26px serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('🇦🇷 Contador de Billetes', PAD, 44);
+
+  // ── Fecha y hora ──
+  const now = new Date();
+  const fecha = now.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const hora  = now.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '15px sans-serif';
+  ctx.fillText(`${fecha}  ${hora}`, PAD, 74);
+
+  // ── Subtítulo ──
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '13px sans-serif';
+  ctx.fillText('Pesos Argentinos · 2026', PAD, 96);
+
+  // ── Filas de billetes ──
+  active.forEach((b, i) => {
+    const y = HEADER + i * ROW_H;
+    // fondo alternado
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)';
+    ctx.fillRect(0, y, W, ROW_H);
+
+    // acento de color a la izquierda
+    ctx.fillStyle = getAccentColor(b.val);
+    ctx.fillRect(0, y + 6, 4, ROW_H - 12);
+
+    // denominación
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '15px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${counts[b.val]} × ${b.label}`, PAD, y + ROW_H / 2 + 5);
+
+    // subtotal
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 16px serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(counts[b.val] * b.val), W - PAD, y + ROW_H / 2 + 5);
+  });
+
+  // ── Separador total ──
+  const footerY = HEADER + active.length * ROW_H;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(0, footerY, W, 1);
+
+  // ── Footer total — fondo verde ──
+  const gGreen = ctx.createLinearGradient(0, footerY, W, footerY + FOOTER);
+  gGreen.addColorStop(0, '#2D9A5F');
+  gGreen.addColorStop(1, '#1E6B42');
+  ctx.fillStyle = gGreen;
+  ctx.fillRect(0, footerY, W, FOOTER + 20);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('TOTAL', PAD, footerY + 34);
+
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 34px serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(fmt(total), W - PAD, footerY + 68);
+
+  // ── Total de billetes ──
+  const totalBills = active.reduce((s, b) => s + counts[b.val], 0);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${totalBills} billete${totalBills !== 1 ? 's' : ''}`, PAD, footerY + 68);
+
+  // ── Compartir la imagen ──
+  canvas.toBlob(blob => {
+    if (!blob) { showToast('Error al generar imagen'); return; }
+    const file = new File([blob], 'contador-billetes.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Contador de Billetes' }).catch(() => {});
+    } else {
+      // Fallback: descargar la imagen
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'contador-billetes.png';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('📥 Imagen guardada');
+    }
+  }, 'image/png');
+}
+
+function getAccentColor(val) {
+  const map = {
+    20000: '#9B6FD4', 10000: '#D4A820', 2000: '#28A85A',
+    1000: '#D45A28', 500: '#2878C8', 200: '#C83C3C',
+    100: '#C87814', 50: '#28C89A', 20: '#5A88D4', 10: '#A0C050'
+  };
+  return map[val] || '#74ACDF';
 }
 
 // ── Toast ──
